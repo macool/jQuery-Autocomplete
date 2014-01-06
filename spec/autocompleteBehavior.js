@@ -691,7 +691,7 @@ describe('Autocomplete', function () {
         });
     });
 
-    it('Should accept valueKey as an aoption', function () {
+    it('Should accept valueKey as an option', function () {
         var input = $('<input />'),
             instance,
             ajaxExecuted,
