@@ -690,4 +690,40 @@ describe('Autocomplete', function () {
             expect(instance.suggestions.length).toBe(4);
         });
     });
+
+    it('Should accept valueKey as an aoption', function () {
+        var input = $('<input />'),
+            instance,
+            ajaxExecuted,
+            serviceUrl = "/items.json";
+
+        input.autocomplete({
+            serviceUrl: serviceUrl,
+            keyPath: "items",
+            valueKey: "nombre"
+        });
+
+        $.mockjax({
+            url: serviceUrl,
+            responseTime: 5,
+            response: function (settings) {
+                ajaxExecuted = true;
+                var response = {
+                    items: [{nombre: "Item 1", id: 1}, {nombre: "Item 2", id: 2}, {nombre: "Item 3", id: 3}]
+                };
+                this.responseText = JSON.stringify(response);
+            }
+        });
+
+        input.val("item");
+        instance = input.autocomplete();
+        instance.onValueChange();
+
+        waits(10);
+
+        runs(function () {
+            expect(ajaxExecuted).toBeTruthy();
+            expect(instance.suggestions.length).toBe(3);
+        });
+    })
 });
