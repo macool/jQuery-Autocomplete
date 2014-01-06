@@ -695,7 +695,7 @@ describe('Autocomplete', function () {
         var input = $('<input />'),
             instance,
             ajaxExecuted,
-            serviceUrl = "/items.json";
+            serviceUrl = "/dogs.json";
 
         input.autocomplete({
             serviceUrl: serviceUrl,
@@ -709,13 +709,13 @@ describe('Autocomplete', function () {
             response: function (settings) {
                 ajaxExecuted = true;
                 var response = {
-                    items: [{nombre: "Item 1", id: 1}, {nombre: "Item 2", id: 2}, {nombre: "Item 3", id: 3}]
+                    items: [{nombre: "Dog 1", id: 1}, {nombre: "Dog 2", id: 2}, {nombre: "Dog 3", id: 3}, {nombre: "Dog 4", id: 4}, {nombre: "Dog 5", id: 5}]
                 };
                 this.responseText = JSON.stringify(response);
             }
         });
 
-        input.val("item");
+        input.val("Dog");
         instance = input.autocomplete();
         instance.onValueChange();
 
@@ -723,7 +723,7 @@ describe('Autocomplete', function () {
 
         runs(function () {
             expect(ajaxExecuted).toBeTruthy();
-            expect(instance.suggestions.length).toBe(3);
+            expect(instance.suggestions.length).toBe(5);
         });
     })
 });
