@@ -57,6 +57,8 @@
                 appendTo: 'body',
                 serviceUrl: null,
                 lookup: null,
+                keyPath: "suggestions",
+                valueKey: "value",
                 onSelect: null,
                 width: 'auto',
                 minChars: 1,
@@ -76,6 +78,7 @@
                 dataType: 'text',
                 currentRequest: null,
                 triggerSelectOnValidInput: true,
+                preventBadQueries: true,
                 lookupFilter: function (suggestion, originalQuery, queryLowerCase) {
                     return suggestion.value.toLowerCase().indexOf(queryLowerCase) !== -1;
                 },
@@ -116,10 +119,10 @@
 
     $.Autocomplete = Autocomplete;
 
-    Autocomplete.formatResult = function (suggestion, currentValue) {
+    Autocomplete.formatResult = function (suggestion, currentValue, context) {
         var pattern = '(' + utils.escapeRegExChars(currentValue) + ')';
 
-        return suggestion.value.replace(new RegExp(pattern, 'gi'), '<strong>$1<\/strong>');
+        return suggestion[context.options.valueKey].replace(new RegExp(pattern, 'gi'), '<strong>$1<\/strong>');
     };
 
     Autocomplete.prototype = {
@@ -427,7 +430,7 @@
                 queryLowerCase = query.toLowerCase();
 
             $.each(that.suggestions, function (i, suggestion) {
-                if (suggestion.value.toLowerCase() === queryLowerCase) {
+                if (suggestion[that.options.valueKey].toLowerCase() === queryLowerCase) {
                     index = i;
                     return false;
                 }
@@ -473,11 +476,11 @@
                 that = this,
                 options = that.options,
                 serviceUrl = options.serviceUrl,
-                data,
+                params,
                 cacheKey;
 
             options.params[options.paramName] = q;
-            data = options.ignoreParams ? null : options.params;
+            params = options.ignoreParams ? null : options.params;
 
             if (that.isLocal) {
                 response = that.getSuggestionsLocal(q);
@@ -485,7 +488,7 @@
                 if ($.isFunction(serviceUrl)) {
                     serviceUrl = serviceUrl.call(that.element, q);
                 }
-                cacheKey = serviceUrl + '?' + $.param(data || {});
+                cacheKey = serviceUrl + '?' + $.param(params || {});
                 response = that.cachedResponse[cacheKey];
             }
 
@@ -501,13 +504,15 @@
                 }
                 that.currentRequest = $.ajax({
                     url: serviceUrl,
-                    data: data,
+                    data: params,
                     type: options.type,
                     dataType: options.dataType
                 }).done(function (data) {
+                    var result;
                     that.currentRequest = null;
-                    that.processResponse(data, q, cacheKey);
-                    options.onSearchComplete.call(that.element, q);
+                    result = options.transformResult(data);
+                    that.processResponse(result, q, cacheKey);
+                    options.onSearchComplete.call(that.element, q, result.suggestions);
                 }).fail(function (jqXHR, textStatus, errorThrown) {
                     options.onSearchError.call(that.element, q, jqXHR, textStatus, errorThrown);
                 });
@@ -515,6 +520,10 @@
         },
 
         isBadQuery: function (q) {
+            if (!this.options.preventBadQueries){
+                return false;
+            }
+
             var badQueries = this.badQueries,
                 i = badQueries.length;
 
@@ -563,7 +572,7 @@
 
             // Build suggestions inner HTML:
             $.each(that.suggestions, function (i, suggestion) {
-                html += '<div class="' + className + '" data-index="' + i + '">' + formatResult(suggestion, value) + '</div>';
+                html += '<div class="' + className + '" data-index="' + i + '">' + formatResult(suggestion, value, that) + '</div>';
             });
 
             // If width is auto, adjust width before displaying suggestions,
@@ -603,7 +612,7 @@
             }
 
             $.each(that.suggestions, function (i, suggestion) {
-                var foundMatch = suggestion.value.toLowerCase().indexOf(value) === 0;
+                var foundMatch = suggestion[that.options.valueKey].toLowerCase().indexOf(value) === 0;
                 if (foundMatch) {
                     bestMatch = suggestion;
                 }
@@ -617,7 +626,7 @@
             var hintValue = '',
                 that = this;
             if (suggestion) {
-                hintValue = that.currentValue + suggestion.value.substr(that.currentValue.length);
+                hintValue = that.currentValue + suggestion[that.options.valueKey].substr(that.currentValue.length);
             }
             if (that.hintValue !== hintValue) {
                 that.hintValue = hintValue;
@@ -637,18 +646,17 @@
             return suggestions;
         },
 
-        processResponse: function (response, originalQuery, cacheKey) {
+        processResponse: function (result, originalQuery, cacheKey) {
             var that = this,
-                options = that.options,
-                result = options.transformResult(response, originalQuery);
+                options = that.options;
 
-            result.suggestions = that.verifySuggestionsFormat(result.suggestions);
+            result.suggestions = that.verifySuggestionsFormat(result[options.keyPath]);
 
             // Cache results if cache is not disabled:
             if (!options.noCache) {
                 that.cachedResponse[cacheKey] = result;
-                if (result.suggestions.length === 0) {
-                    that.badQueries.push(cacheKey);
+                if (options.preventBadQueries && result.suggestions.length === 0) {
+                    that.badQueries.push(originalQuery);
                 }
             }
 
@@ -744,7 +752,7 @@
                 $(that.suggestionsContainer).scrollTop(offsetTop - that.options.maxHeight + heightDelta);
             }
 
-            that.el.val(that.getValue(that.suggestions[index].value));
+            that.el.val(that.getValue(that.suggestions[index].this[valueKey]));
             that.signalHint(null);
         },
 
@@ -753,7 +761,7 @@
                 onSelectCallback = that.options.onSelect,
                 suggestion = that.suggestions[index];
 
-            that.currentValue = that.getValue(suggestion.value);
+            that.currentValue = that.getValue(suggestion[that.valueKey]);
             that.el.val(that.currentValue);
             that.signalHint(null);
             that.suggestions = [];

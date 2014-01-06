@@ -13,6 +13,8 @@ The standard jquery.autocomplete.js file is around 2.7KB when minified via Closu
     * Sets up autocomplete for input field(s).
     * `options`: An object literal which defines the settings to use for the autocomplete plugin.
         * `serviceUrl`: Server side URL or callback function that returns serviceUrl string. Optional if local lookup data is provided.
+        * `keyPath`: (by default `suggestions`). The key of the response where the array of results is.
+        * `valueKey`: (by default `value`). The key in the server response. (If your response has a different format).
         * `lookup`: Lookup array for the suggestions. It may be array of strings or `suggestion` object literals.
             * `suggestion`: An object literal with the following format: `{ value: 'string', data: any }`.
         * `lookupFilter`: `function (suggestion, query, queryLowerCase) {}` filter function for local lookups. By default it does partial string match (case insensitive).
@@ -32,10 +34,11 @@ The standard jquery.autocomplete.js file is around 2.7KB when minified via Closu
         * `type`: Ajax request type to get suggestions. Default: `GET`.
         * `noCache`: Boolean value indicating whether to cache suggestion results. Default `false`.
         * `onSearchStart`: `function (query) {}` called before ajax request. `this` is bound to input element.
-        * `onSearchComplete`: `function (query) {}` called after ajax response is processed. `this` is bound to input element.
+        * `onSearchComplete`: `function (query, suggestions) {}` called after ajax response is processed. `this` is bound to input element. `suggestions` is an array containing the results.
         * `onSearchError`: `function (query, jqXHR, textStatus, errorThrown) {}` called if ajax request fails. `this` is bound to input element.
         * `onInvalidateSelection`: `function () {}` called when input is altered after selection has been made. `this` is bound to input element.
         * `triggerSelectOnValidInput`: Boolean value indicating if `select` should be triggered if it matches suggestion. Default `true`.
+        * `preventBadQueries`: Boolean value indicating if it shoud prevent future ajax requests for queries with the same root if no results were returned. E.g. if `Jam` returns no suggestions, it will not fire for any future query that starts with `Jam`. Default `true`. 
         * `beforeRender`: `function (container) {}` called before displaying the suggestions. You may manipulate suggestions DOM before it is displayed.
         * `tabDisabled`: Default `false`. Set to true to leave the cursor in the input field after the user tabs to select a suggestion.
         * `paramName`: Default `query`. The name of the request parameter that contains the query.
@@ -149,6 +152,15 @@ you can supply the "paramName" and "transformResult" options:
                 })
             };
         }
+    })
+
+If your ajax service responds with a key different than `suggestions`, you can use `keyPath` option. If the *suggestions* key to display is other than `value`, you can use `valueKey` option:
+
+For example, if your server responds with: `{items: [{name: 'Item 1'}, {name: 'Item 2'}]}` you should use the following options:
+    
+    $('#autocomplete').autocomplete({
+        keyPath: "items",
+        valueKey: "name"
     })
 
 

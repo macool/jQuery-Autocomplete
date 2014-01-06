@@ -136,12 +136,15 @@ describe('Autocomplete', function () {
     it('Should execute onSearchComplete', function () {
         var input = document.createElement('input'),
             completeQuery,
+            mockupSuggestion = { value: 'A', data: 'A' },
+            resultSuggestions,
             ajaxExecuted = false,
             url = '/test-completed',
             autocomplete = new $.Autocomplete(input, {
                 serviceUrl: url,
-                onSearchComplete: function (query) {
+                onSearchComplete: function (query, suggestions) {
                     completeQuery = query;
+                    resultSuggestions = suggestions;
                 }
             });
 
@@ -153,7 +156,7 @@ describe('Autocomplete', function () {
                 var query = settings.data.query,
                     response = {
                         query: query,
-                        suggestions: []
+                        suggestions: [mockupSuggestion]
                     };
                 this.responseText = JSON.stringify(response);
             }
@@ -169,6 +172,8 @@ describe('Autocomplete', function () {
         runs(function () {
             expect(ajaxExecuted).toBe(true);
             expect(completeQuery).toBe('A');
+            expect(resultSuggestions[0].value).toBe('A');
+            expect(resultSuggestions[0].data).toBe('A');
         });
     });
 
@@ -597,4 +602,128 @@ describe('Autocomplete', function () {
 
         expect(instance.suggestions.length).toBe(limit);
     });
+
+    it('Should prevent Ajax requests if previous query with matching root failed.', function () {
+        var input = $('<input />'),
+            instance,
+            serviceUrl = '/autocomplete/prevent/ajax',
+            ajaxCount = 0;
+
+        input.autocomplete({
+            serviceUrl: serviceUrl
+        });
+
+        $.mockjax({
+            url: serviceUrl,
+            responseTime: 5,
+            response: function (settings) {
+                ajaxCount++;
+                var response = { suggestions: [] };
+                this.responseText = JSON.stringify(response);
+            }
+        });
+
+        input.val('Jam');
+        instance = input.autocomplete();
+        instance.onValueChange();
+
+        waits(10);
+
+        runs(function (){
+            expect(ajaxCount).toBe(1);
+            input.val('Jama');
+            instance.onValueChange();
+        });
+
+        waits(10);
+
+        runs(function (){
+            // Ajax call should not have bee made:
+            expect(ajaxCount).toBe(1);
+
+            // Change setting and continue:
+            instance.setOptions({ preventBadQueries: false });
+            input.val('Jamai');
+            instance.onValueChange();
+        });
+
+        waits(10);
+
+        runs(function (){
+            // Ajax call should have been made:
+            expect(ajaxCount).toBe(2);
+        });
+    });
+
+    it('Should accept the key as an option', function () {
+        var input = $('<input />'),
+            instance,
+            ajaxExecuted,
+            serviceUrl = "/items.json";
+
+
+        input.autocomplete({
+            serviceUrl: serviceUrl,
+            keyPath: "items"
+        });
+
+        $.mockjax({
+            url: serviceUrl,
+            responseTime: 5,
+            response: function (settings) {
+                ajaxExecuted = true;
+                var response = {
+                    items: [{value: "Item 1", id: 1}, {value: "Item 2", id: 2}, {value: "Item 3", id: 3}, {value: "Item 4", id: 4}]
+                };
+                this.responseText = JSON.stringify(response);
+            }
+        });
+
+        input.val("item");
+        instance = input.autocomplete();
+        instance.onValueChange();
+
+        waits(10);
+
+        runs(function() {
+            expect(ajaxExecuted).toBeTruthy();
+            expect(instance.suggestions.length).toBe(4);
+        });
+    });
+
+    it('Should accept valueKey as an option', function () {
+        var input = $('<input />'),
+            instance,
+            ajaxExecuted,
+            serviceUrl = "/dogs.json";
+
+        input.autocomplete({
+            serviceUrl: serviceUrl,
+            keyPath: "items",
+            valueKey: "nombre"
+        });
+
+        $.mockjax({
+            url: serviceUrl,
+            responseTime: 5,
+            response: function (settings) {
+                ajaxExecuted = true;
+                var response = {
+                    items: [{nombre: "Dog 1", id: 1}, {nombre: "Dog 2", id: 2}, {nombre: "Dog 3", id: 3}, {nombre: "Dog 4", id: 4}, {nombre: "Dog 5", id: 5}]
+                };
+                this.responseText = JSON.stringify(response);
+            }
+        });
+
+        input.val("Dog");
+        instance = input.autocomplete();
+        instance.onValueChange();
+
+        waits(10);
+
+        runs(function () {
+            expect(ajaxExecuted).toBeTruthy();
+            expect(instance.suggestions.length).toBe(5);
+        });
+    })
 });
